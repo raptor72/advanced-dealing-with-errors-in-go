@@ -1,10 +1,25 @@
 package errs
 
 import (
+	 "fmt"
 	"time"
 )
 
-type WithTimeError struct { // Реализуй меня.
+type WithTimeError struct {
+	wterr       error
+	errocTime time.Time
+}
+
+func (t WithTimeError) Time() time.Time {
+	return t.errocTime
+}
+
+func (t WithTimeError) Error() string {
+	return fmt.Errorf("%w", t.wterr).Error()
+}
+
+func (t WithTimeError) Unwrap() error {
+    return t.wterr
 }
 
 func NewWithTimeError(err error) error {
@@ -12,6 +27,10 @@ func NewWithTimeError(err error) error {
 }
 
 func newWithTimeError(err error, timeFunc func() time.Time) error {
-	// Реализуй меня.
-	return nil
+    timeOcured := timeFunc()
+	e := WithTimeError{
+		wterr: err,
+        errocTime: timeOcured,
+	}
+	return e
 }
