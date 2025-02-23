@@ -6,7 +6,7 @@ import (
 	"fmt"
 	// _ "fmt"
 	"regexp"
-	_ "strings"
+	"strings"
 )
 
 const maxPageSize = 100
@@ -25,12 +25,21 @@ type ErrIsNotRegexp struct {
 }
 
 func (e ErrIsNotRegexp) Error() string {
-	return e.Msg + e.Origin.Error()
-    // return e.Msg
-	// return fmt.Errorf("%v", e.Origin)
+	if e.Origin != nil {
+        return e.Msg + e.Origin.Error()
+	}
+	return e.Msg
 }
+
 func (e ErrIsNotRegexp) Unwrap() error {
-	return e.Origin
+	if e.Origin != nil {
+        return e.Origin
+	}
+	return nil
+}
+
+func (e *ErrIsNotRegexp) Is(target error) bool {
+    return strings.Contains(target.Error(), e.Msg)
 }
 
 type ErrInvalidPage struct {
@@ -113,16 +122,19 @@ func (r SearchRequest) Validate() error {
 		resErrors = append(resErrors, regErr)
 	}
 	if r.Page <= 0 {
-		pageErr := ErrInvalidPage{Msg: "invalid page:", Page: r.Page}
+		pageErr := ErrInvalidPage{Msg: "invalid page: ", Page: r.Page}
 		resErrors = append(resErrors, pageErr)
 	}
 	if r.PageSize <= 0 {
-		pageSizeErr := ErrInvalidPageSize{Msg: "invalid page size:", Comp: " < ", Val: "0", PageSize: r.PageSize}
+		pageSizeErr := ErrInvalidPageSize{Msg: "invalid page size: ", Comp: "<", Val: "0", PageSize: r.PageSize}
 		resErrors = append(resErrors, pageSizeErr)
 	}
 	if r.PageSize > maxPageSize {
-		pageSizeErr := ErrInvalidPageSize{Msg: "invalid page size:", Comp: ">", Val: fmt.Sprintf("%d", maxPageSize), PageSize: r.PageSize}
+		pageSizeErr := ErrInvalidPageSize{Msg: "invalid page size: ", Comp: ">", Val: fmt.Sprintf("%d", maxPageSize), PageSize: r.PageSize}
 		resErrors = append(resErrors, pageSizeErr)
 	}
-	return resErrors
+	if len(resErrors) != 0 {
+		return resErrors
+	}
+	return nil
 }
