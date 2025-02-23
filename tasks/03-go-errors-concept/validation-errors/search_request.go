@@ -4,6 +4,7 @@ import (
 	// Доступные пакеты, _ для сохранения импортов.
 	"errors"
 	"fmt"
+
 	// _ "fmt"
 	"regexp"
 	"strings"
@@ -26,7 +27,8 @@ type ErrIsNotRegexp struct {
 
 func (e ErrIsNotRegexp) Error() string {
 	if e.Origin != nil {
-        return e.Msg + e.Origin.Error()
+//        return e.Msg + e.Origin.Error()
+		return fmt.Errorf("%v%w", e.Msg, e.Origin).Error()
 	}
 	return e.Msg
 }
@@ -71,18 +73,6 @@ func (e ErrInvalidPageSize) Unwrap() error {
 	return e.Origin
 }
 
-// type ValidationErrors struct {
-// 	vErrs []error
-// }
-
-// func (verr ValidationErrors) Error() string {
-// 	var resErr string
-// 	for _, e := range verr{
-// 		s += e.Error()
-// 	}
-// 	return s
-// }
-
 type ValidationErrors []error
 func (verr ValidationErrors) Error() string {
     var s string
@@ -95,6 +85,15 @@ func (verr ValidationErrors) Error() string {
 	return s
 }
 
+func (verr ValidationErrors) Unwrap() error {
+	if len(verr) != 0 {
+        for _, e := range verr {
+			return e
+		}
+	}
+	return nil
+}
+
 func (verr ValidationErrors) Is(target error) bool {
 	for _, e := range verr {
 		if errors.Is(e, target) {
@@ -103,7 +102,6 @@ func (verr ValidationErrors) Is(target error) bool {
 	}
 	return false
 }
-
 
 type SearchRequest struct {
 	Exp      string
@@ -114,11 +112,10 @@ type SearchRequest struct {
 func (r SearchRequest) Validate() error {
 	// Реализуй меня.
 	resErrors := ValidationErrors{}
-
 	_, err := regexp.Compile(r.Exp)
 	if err != nil {
-		// return ErrIsNotRegexp{Msg: "exp is not regexp: ", Origin: err}
 		regErr := ErrIsNotRegexp{Msg: "exp is not regexp: ", Origin: err}
+		// regErr := ErrIsNotRegexp{Msg: "error parsing regexp: ", Origin: err}
 		resErrors = append(resErrors, regErr)
 	}
 	if r.Page <= 0 {
