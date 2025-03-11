@@ -16,7 +16,7 @@ var (
 	errIsNotRegexp     error
 	errInvalidPage     error
 	errInvalidPageSize error
-	validationErrors   error
+	// validationErrors   error
 )
 
 
@@ -26,14 +26,24 @@ type ValidationErrors []error
 // }
 
 func (verr ValidationErrors) Error() string {
-    var s string
-	if len(verr) != 0 {
-    	s += "validation errors:\n"
-	    for _, e := range verr{
-		    s += "\t" + e.Error() + "\n"
-    	}
-    }
-	return s
+	if len(verr) > 0 {
+    	var validationErrors = errors.New("validation errors:\n")
+        
+		for _, e := range verr {
+			validationErrors = fmt.Errorf("%v\t%w\n", validationErrors, e)
+		}
+        return validationErrors.Error()
+	}
+
+	// var s string
+	// if len(verr) != 0 {
+    // 	s += "validation errors:\n"
+	//     for _, e := range verr{
+	// 	    s += "\t" + e.Error() + "\n"
+    // 	}
+    // }
+	// return s
+	return ""
 }
 
 // func (verr ValidationErrors) Unwrap() error {
@@ -45,8 +55,11 @@ func (verr ValidationErrors) Error() string {
 // 	return nil
 // }
 
-func (verr ValidationErrors) Is(target error) bool {
-	return errors.Is(verr, target)
+func (verr *ValidationErrors) Is(target error) bool {
+    for _, e := range *verr {
+		return errors.Is(e, target)
+	}
+    return false
 }
 
 type SearchRequest struct {
@@ -55,40 +68,28 @@ type SearchRequest struct {
 	PageSize int
 }
 
-func (r SearchRequest) Validate() ValidationErrors {
+func (r SearchRequest) Validate() error {
     var vers ValidationErrors
-	haserrs := false
-	var validationErrors = errors.New("validation errors:")
 	_, err := regexp.Compile(r.Exp)
 	if err != nil {
-		// var errIsNotRegexp = errors.New("\texp is not regexp: ")
 		var errIsNotRegexp = errors.New("exp is not regexp: ")
 		errIsNotRegexp = fmt.Errorf("%v%w", errIsNotRegexp, err)
-		validationErrors = fmt.Errorf("%v\n%w", validationErrors, errIsNotRegexp)
         vers = append(vers, errIsNotRegexp)
-		haserrs = true
 	}
 	if r.Page <= 0 {
 		var errInvalidPage = fmt.Errorf("invalid page: %v", r.Page)
-		validationErrors = fmt.Errorf("%v\n%w", validationErrors, errInvalidPage)
 		vers = append(vers, errInvalidPage)
-		haserrs = true
 	}
 	if r.PageSize > maxPageSize {
 		var errInvalidPageSize = fmt.Errorf("invalid page size: %v > %v", r.PageSize, maxPageSize)
-		validationErrors = fmt.Errorf("%v\n%w", validationErrors, errInvalidPageSize)
 		vers = append(vers, errInvalidPageSize)
-		haserrs = true
 	}
 	if r.PageSize <= 0 {
 		var errInvalidPageSize = fmt.Errorf("invalid page size: %v < 0", r.PageSize)
-		validationErrors = fmt.Errorf("%v\n%w", validationErrors, errInvalidPageSize)
 		vers = append(vers, errInvalidPageSize)
-		haserrs = true
 	}
-	if haserrs {
+	if len(vers)>0 {
 	    return vers
-		// return validationErrors
 	}
-	return nil
+	return &vers
 }
